@@ -1,0 +1,11 @@
+name: classdemo
+
+on:
+  workflow_dispatch:
+
+jobs:
+  firsttime:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
+      - run: echo see yout tomorrow
