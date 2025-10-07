@@ -341,14 +341,43 @@ async function basicInit2(page: Page) {
   });
 
   // Order a pizza.
+  // In basicInit2, add this route for GET orders:
   await page.route("*/**/api/order", async (route) => {
-    const orderReq = route.request().postDataJSON();
-    const orderRes = {
-      order: { ...orderReq, id: 23 },
-      jwt: "eyJpYXQ",
-    };
-    expect(route.request().method()).toBe("POST");
-    await route.fulfill({ json: orderRes });
+    const method = route.request().method();
+
+    if (method === "GET") {
+      // Handle GET /api/order - get user's order history
+      if (loggedInUser) {
+        await route.fulfill({
+          json: {
+            dinerId: parseInt(loggedInUser.id ?? "0"),
+            orders: [
+              {
+                id: 1,
+                franchiseId: 2,
+                storeId: 4,
+                date: "2024-10-07T12:00:00.000Z",
+                items: [
+                  { id: 1, menuId: 1, description: "Veggie", price: 0.0038 },
+                  { id: 2, menuId: 2, description: "Pepperoni", price: 0.0042 },
+                ],
+              },
+            ],
+            page: 1,
+          },
+        });
+      } else {
+        await route.fulfill({ status: 401, json: { error: "Unauthorized" } });
+      }
+    } else if (method === "POST") {
+      // Handle POST /api/order - create order (existing code)
+      const orderReq = route.request().postDataJSON();
+      const orderRes = {
+        order: { ...orderReq, id: 23 },
+        jwt: "eyJpYXQ",
+      };
+      await route.fulfill({ json: orderRes });
+    }
   });
 
   await page.goto("/");
@@ -552,4 +581,21 @@ test("history page", async ({ page }) => {
   await page.getByRole("link", { name: "History" }).click();
   await expect(page).toHaveURL(/.*history.*/);
   await expect(page.getByText("Mama Rucci, my my")).toBeVisible();
+});
+
+test("diner dashboard", async ({ page }) => {
+  await basicInit2(page);
+
+  await page.getByRole("link", { name: "Login" }).click();
+  await page.getByRole("textbox", { name: "Email address" }).fill("d@jwt.com");
+  await page.getByRole("textbox", { name: "Password" }).fill("a");
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page.getByRole("link", { name: "KC" })).toBeVisible();
+
+  await page.getByRole("link", { name: "KC" }).click();
+  await expect(page).toHaveURL(/.*diner-dashboard.*/);
+  await expect(page.getByText("Your pizza kitchen")).toBeVisible();
+  await expect(page.getByText("Kai Chen")).toBeVisible();
+  await expect(page.getByText("d@jwt.com")).toBeVisible();
+  await expect(page.getByText("Here is your history of all")).toBeVisible();
 });
