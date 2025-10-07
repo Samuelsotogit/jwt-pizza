@@ -439,19 +439,13 @@ test("register new user", async ({ page }) => {
 
 test("logout", async ({ page }) => {
   await basicInit2(page);
-
-  // Login first
   await page.getByRole("link", { name: "Login" }).click();
   await page.getByRole("textbox", { name: "Email address" }).fill("d@jwt.com");
   await page.getByRole("textbox", { name: "Password" }).fill("a");
   await page.getByRole("button", { name: "Login" }).click();
-
   await expect(page.getByRole("link", { name: "KC" })).toBeVisible();
-
   await page.getByRole("link", { name: "Logout" }).click();
-
   await expect(page.getByRole("link", { name: "Login" })).toBeVisible();
-
   await expect(page.getByRole("link", { name: "KC" })).not.toBeVisible();
 });
 
@@ -461,7 +455,6 @@ test("create franchise", async ({ page }) => {
   await page.getByRole("textbox", { name: "Email address" }).fill("a@jwt.com");
   await page.getByRole("textbox", { name: "Password" }).fill("Admin");
   await page.getByRole("button", { name: "Login" }).click();
-
   await expect(page.getByRole("link", { name: "AU" })).toBeVisible();
   await page.getByRole("link", { name: "Admin" }).click();
   await page.getByRole("button", { name: "Add Franchise" }).click();
@@ -483,49 +476,29 @@ test("create franchise", async ({ page }) => {
 
 test("delete franchise", async ({ page }) => {
   await basicInit2(page); // Make sure this includes the DELETE handler above
-
-  // Login as admin
   await page.getByRole("link", { name: "Login" }).click();
   await page.getByRole("textbox", { name: "Email address" }).fill("a@jwt.com");
   await page.getByRole("textbox", { name: "Password" }).fill("Admin");
   await page.getByRole("button", { name: "Login" }).click();
-
-  // Navigate to admin/franchise page
   await page.getByRole("link", { name: "Admin" }).click();
-
-  // Find and delete a franchise (adjust selectors based on your UI)
   await page.getByRole("button", { name: "Close" }).first().click();
-
-  // Confirm deletion if there's a confirmation dialog
   await page.getByRole("button", { name: "Close" }).click();
-  // ask why after closing a franchise the frontend still shows the three franchises
 });
 
 test("create store", async ({ page }) => {
-  // ask why the franchise link takes you to a relogin page.
   await basicInit2(page);
-
-  // Login as franchisee
   await page.getByRole("link", { name: "Login" }).click();
   await page.getByRole("textbox", { name: "Email address" }).fill("f@jwt.com");
   await page.getByRole("textbox", { name: "Password" }).fill("franchise");
   await page.getByRole("button", { name: "Login" }).click();
-
-  // Verify login successful
-  // await expect(page.getByRole("link", { name: "FO" })).toBeVisible();
-
-  // Navigate to franchise page (remove the second login!)
   await page
     .getByLabel("Global")
     .getByRole("link", { name: "Franchise" })
     .click();
-
-  // Now continue with store creation
   await page.getByRole("button", { name: "Create store" }).click(); // Adjust selector as needed
   await page.getByRole("textbox", { name: "Store name" }).fill("New Store");
   await page.getByRole("button", { name: "Create" }).click();
   await page.getByRole("button", { name: "Create store" }).click();
-
   await page.getByRole("textbox", { name: "store name" }).click();
   await page.getByRole("textbox", { name: "store name" }).press("CapsLock");
   await page.getByRole("textbox", { name: "store name" }).fill("C");
@@ -543,20 +516,15 @@ test("create store", async ({ page }) => {
 
 test("close store", async ({ page }) => {
   await basicInit2(page);
-
-  // Login as franchisee
   await page.getByRole("link", { name: "Login" }).click();
   await page.getByRole("textbox", { name: "Email address" }).fill("f@jwt.com");
   await page.getByRole("textbox", { name: "Password" }).fill("franchise");
   await page.getByRole("button", { name: "Login" }).click();
-
-  // Navigate to franchise page
   await page
     .getByLabel("Global")
     .getByRole("link", { name: "Franchise" })
     .click();
 
-  // Find and close a store (adjust selector based on your actual UI)
   await page.getByRole("button", { name: "Close" }).first().click();
 
   if (await page.getByRole("button", { name: "Confirm" }).isVisible()) {
