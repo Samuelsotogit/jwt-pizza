@@ -1,11 +1,11 @@
 import { test, expect } from "playwright-test-coverage";
 import { Dialog } from "@playwright/test";
 
-async function basicInitAdmin(page: any) {
-  let loggedInUser: any = undefined;
-  let deletedUserIds: string[] = [];
-  let registeredUsers: any[] = [];
+let loggedInUser: any = undefined;
+let deletedUserIds: string[] = [];
+let registeredUsers: any[] = [];
 
+async function basicInitAdmin(page: any) {
   await page.goto("/");
 
   // Enhanced auth mock with registration support
@@ -102,87 +102,86 @@ async function basicInitAdmin(page: any) {
     const url = route.request().url();
     console.log(`🎯 USER ROUTE INTERCEPTED: ${method} ${url}`);
 
+    let allUsers = [
+      {
+        id: "1",
+        name: "Admin User",
+        email: "a@jwt.com",
+        roles: [{ role: "admin" }],
+      },
+      {
+        id: "2",
+        name: "Franchise Owner",
+        email: "f@jwt.com",
+        roles: [{ role: "franchisee" }],
+      },
+      {
+        id: "3",
+        name: "Kai Chen",
+        email: "d@jwt.com",
+        roles: [{ role: "diner" }],
+      },
+      {
+        id: "4",
+        name: "John Doe",
+        email: "john@jwt.com",
+        roles: [{ role: "diner" }],
+      },
+      {
+        id: "5",
+        name: "Mike Johnson",
+        email: "mike@jwt.com",
+        roles: [{ role: "diner" }],
+      },
+      {
+        id: "6",
+        name: "Sophia Lee",
+        email: "sophia@jwt.com",
+        roles: [{ role: "diner" }],
+      },
+      {
+        id: "7",
+        name: "Chris Evans",
+        email: "chris@jwt.com",
+        roles: [{ role: "diner" }],
+      },
+      {
+        id: "8",
+        name: "Olivia Brown",
+        email: "olivia@jwt.com",
+        roles: [{ role: "diner" }],
+      },
+      {
+        id: "9",
+        name: "Liam Wilson",
+        email: "liam@jwt.com",
+        roles: [{ role: "diner" }],
+      },
+      {
+        id: "10",
+        name: "Emma Martinez",
+        email: "emma@jwt.com",
+        roles: [{ role: "diner" }],
+      },
+      {
+        id: "11",
+        name: "Amy Taylor",
+        email: "amy@jwt.com",
+        roles: [{ role: "diner" }],
+      },
+      {
+        id: "12",
+        name: "David Garcia",
+        email: "david@jwt.com",
+        roles: [{ role: "diner" }],
+      },
+    ];
+
     if (method === "GET") {
       const url = new URL(route.request().url());
       const pageNum = parseInt(url.searchParams.get("page") || "0");
       const limit = parseInt(url.searchParams.get("limit") || "10");
       const nameFilter = url.searchParams.get("name") || "*";
-
-      // Combine your static users with registered users
-      let allUsers = [
-        {
-          id: "1",
-          name: "Admin User",
-          email: "a@jwt.com",
-          roles: [{ role: "admin" }],
-        },
-        {
-          id: "2",
-          name: "Franchise Owner",
-          email: "f@jwt.com",
-          roles: [{ role: "franchisee" }],
-        },
-        {
-          id: "3",
-          name: "Kai Chen",
-          email: "d@jwt.com",
-          roles: [{ role: "diner" }],
-        },
-        {
-          id: "4",
-          name: "John Doe",
-          email: "john@jwt.com",
-          roles: [{ role: "diner" }],
-        },
-        {
-          id: "5",
-          name: "Mike Johnson",
-          email: "mike@jwt.com",
-          roles: [{ role: "diner" }],
-        },
-        {
-          id: "6",
-          name: "Sophia Lee",
-          email: "sophia@jwt.com",
-          roles: [{ role: "diner" }],
-        },
-        {
-          id: "7",
-          name: "Chris Evans",
-          email: "chris@jwt.com",
-          roles: [{ role: "diner" }],
-        },
-        {
-          id: "8",
-          name: "Olivia Brown",
-          email: "olivia@jwt.com",
-          roles: [{ role: "diner" }],
-        },
-        {
-          id: "9",
-          name: "Liam Wilson",
-          email: "liam@jwt.com",
-          roles: [{ role: "diner" }],
-        },
-        {
-          id: "10",
-          name: "Emma Martinez",
-          email: "emma@jwt.com",
-          roles: [{ role: "diner" }],
-        },
-        {
-          id: "11",
-          name: "Amy Taylor",
-          email: "amy@jwt.com",
-          roles: [{ role: "diner" }],
-        },
-        {
-          id: "12",
-          name: "David Garcia",
-          email: "david@jwt.com",
-          roles: [{ role: "diner" }],
-        },
-      ];
 
       // Add registered users to the list
       allUsers = [...allUsers, ...registeredUsers];
@@ -247,6 +246,46 @@ async function basicInitAdmin(page: any) {
         status: 204,
         json: { message: "204 No Content" },
       });
+    } else if (method === "PUT") {
+      // Handle update user
+      const pathParts = url.split("/");
+      const userId = pathParts[pathParts.length - 1].toString();
+      const body = await route.request().postDataJSON();
+      const { name, email, password } = body;
+
+      // Find user in registeredUsers or static users
+      let user =
+        registeredUsers.find((u) => u.id === userId) ||
+        allUsers.find((u) => u.id === userId);
+
+      if (!user) {
+        await route.fulfill({
+          status: 404,
+          json: { message: "User not found" },
+        });
+        return;
+      }
+
+      // Update only provided fields
+      if (name !== undefined) user.name = name;
+      if (email !== undefined) user.email = email;
+      if (password !== undefined && password !== "") user.password = password;
+
+      // Update in registeredUsers or allUsers
+      const regIdx = registeredUsers.findIndex((u) => u.id === userId);
+      if (regIdx !== -1) {
+        registeredUsers[regIdx] = user;
+      } else {
+        const allIdx = allUsers.findIndex((u) => u.id === userId);
+        if (allIdx !== -1) allUsers[allIdx] = user;
+      }
+
+      await route.fulfill({
+        json: {
+          user: { ...user, password: undefined },
+          token: "mock-updated-token",
+        },
+      });
     }
   });
 
@@ -260,6 +299,88 @@ async function basicInitAdmin(page: any) {
     });
   });
 }
+
+test("updateUser", async ({ page }) => {
+  const email = `user${Math.floor(Math.random() * 10000)}@jwt.com`;
+  registeredUsers = [];
+  deletedUserIds = [];
+  loggedInUser = undefined;
+  await basicInitAdmin(page);
+  await page.goto("/");
+  await page.getByRole("link", { name: "Register" }).click();
+  await page.getByRole("textbox", { name: "Full name" }).fill("pizza diner");
+  await page.getByRole("textbox", { name: "Email address" }).fill(email);
+  await page.getByRole("textbox", { name: "Password" }).fill("diner");
+  await page.getByRole("button", { name: "Register" }).click();
+
+  await page.getByRole("link", { name: "pd" }).click();
+
+  await expect(page.getByRole("main")).toContainText("pizza diner");
+
+  // Open the edit user modal and close it without making changes
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.locator("h3")).toContainText("Edit user");
+  await page.getByRole("button", { name: "Update" }).click();
+
+  await page.waitForSelector('[role="dialog"].hidden', { state: "attached" });
+
+  // Open the edit user modal, make changes, and save
+  await expect(page.getByRole("main")).toContainText("pizza diner");
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.locator("h3")).toContainText("Edit user");
+  await page.getByRole("textbox").first().fill("pizza dinerx");
+  await page.getByRole("button", { name: "Update" }).click();
+
+  await page.waitForSelector('[role="dialog"].hidden', { state: "attached" });
+
+  await expect(page.getByRole("main")).toContainText("pizza dinerx");
+
+  // Logout and log back in to verify changes persisted
+  await page.getByRole("link", { name: "Logout" }).click();
+  await page.getByRole("link", { name: "Login" }).click();
+
+  await page.getByRole("textbox", { name: "Email address" }).fill(email);
+  await page.getByRole("textbox", { name: "Password" }).fill("diner");
+  await page.getByRole("button", { name: "Login" }).click();
+
+  await page.getByRole("link", { name: "pd" }).click();
+
+  await expect(page.getByRole("main")).toContainText("pizza dinerx");
+});
+
+test("update email and password", async ({ page }) => {
+  const email = `user${Math.floor(Math.random() * 10000)}@jwt.com`;
+  await basicInitAdmin(page);
+  await page.goto("/");
+  await page.getByRole("link", { name: "Register" }).click();
+  await page.getByRole("textbox", { name: "Full name" }).fill("pizza diner");
+  await page.getByRole("textbox", { name: "Email address" }).fill(email);
+  await page.getByRole("textbox", { name: "Password" }).fill("diner");
+  await page.getByRole("button", { name: "Register" }).click();
+  await page.getByRole("link", { name: "pd" }).click();
+
+  await expect(page.getByRole("main")).toContainText("pizza diner");
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.locator("h3")).toContainText("Edit user");
+
+  await page.locator('input[type="email"]').fill("new" + email);
+  await page.locator("#password").fill("newdiner");
+  await page.getByRole("button", { name: "Update" }).click();
+  await page.waitForSelector('[role="dialog"].hidden', { state: "attached" });
+
+  await expect(page.getByRole("main")).toContainText("pizza diner");
+  await page.getByRole("link", { name: "Logout" }).click();
+  await page.getByRole("link", { name: "Login" }).click();
+
+  await page
+    .getByRole("textbox", { name: "Email address" })
+    .fill("new" + email);
+  await page.getByRole("textbox", { name: "Password" }).fill("newdiner");
+  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("link", { name: "pd" }).click();
+
+  await expect(page.getByRole("main")).toContainText("pizza diner");
+});
 
 // Add your admin user list tests
 test("admin can view user list", async ({ page }) => {
@@ -341,83 +462,6 @@ test("admin can navigate user pages", async ({ page }) => {
   await expect(page.getByText("Amy Taylor")).toBeVisible();
   await expect(page.getByText("David Garcia")).toBeVisible();
   await expect(page.getByText("Admin User")).not.toBeVisible();
-});
-
-test("updateUser", async ({ page }) => {
-  const email = `user${Math.floor(Math.random() * 10000)}@jwt.com`;
-  await page.goto("/");
-  await page.getByRole("link", { name: "Register" }).click();
-  await page.getByRole("textbox", { name: "Full name" }).fill("pizza diner");
-  await page.getByRole("textbox", { name: "Email address" }).fill(email);
-  await page.getByRole("textbox", { name: "Password" }).fill("diner");
-  await page.getByRole("button", { name: "Register" }).click();
-
-  await page.getByRole("link", { name: "pd" }).click();
-
-  await expect(page.getByRole("main")).toContainText("pizza diner");
-
-  // Open the edit user modal and close it without making changes
-  await page.getByRole("button", { name: "Edit" }).click();
-  await expect(page.locator("h3")).toContainText("Edit user");
-  await page.getByRole("button", { name: "Update" }).click();
-
-  await page.waitForSelector('[role="dialog"].hidden', { state: "attached" });
-
-  // Open the edit user modal, make changes, and save
-  await expect(page.getByRole("main")).toContainText("pizza diner");
-  await page.getByRole("button", { name: "Edit" }).click();
-  await expect(page.locator("h3")).toContainText("Edit user");
-  await page.getByRole("textbox").first().fill("pizza dinerx");
-  await page.getByRole("button", { name: "Update" }).click();
-
-  await page.waitForSelector('[role="dialog"].hidden', { state: "attached" });
-
-  await expect(page.getByRole("main")).toContainText("pizza dinerx");
-
-  // Logout and log back in to verify changes persisted
-  await page.getByRole("link", { name: "Logout" }).click();
-  await page.getByRole("link", { name: "Login" }).click();
-
-  await page.getByRole("textbox", { name: "Email address" }).fill(email);
-  await page.getByRole("textbox", { name: "Password" }).fill("diner");
-  await page.getByRole("button", { name: "Login" }).click();
-
-  await page.getByRole("link", { name: "pd" }).click();
-
-  await expect(page.getByRole("main")).toContainText("pizza dinerx");
-});
-
-test("update email and password", async ({ page }) => {
-  const email = `user${Math.floor(Math.random() * 10000)}@jwt.com`;
-  await page.goto("/");
-  await page.getByRole("link", { name: "Register" }).click();
-  await page.getByRole("textbox", { name: "Full name" }).fill("pizza diner");
-  await page.getByRole("textbox", { name: "Email address" }).fill(email);
-  await page.getByRole("textbox", { name: "Password" }).fill("diner");
-  await page.getByRole("button", { name: "Register" }).click();
-  await page.getByRole("link", { name: "pd" }).click();
-
-  await expect(page.getByRole("main")).toContainText("pizza diner");
-  await page.getByRole("button", { name: "Edit" }).click();
-  await expect(page.locator("h3")).toContainText("Edit user");
-
-  await page.locator('input[type="email"]').fill("new" + email);
-  await page.locator("#password").fill("newdiner");
-  await page.getByRole("button", { name: "Update" }).click();
-  await page.waitForSelector('[role="dialog"].hidden', { state: "attached" });
-
-  await expect(page.getByRole("main")).toContainText("pizza diner");
-  await page.getByRole("link", { name: "Logout" }).click();
-  await page.getByRole("link", { name: "Login" }).click();
-
-  await page
-    .getByRole("textbox", { name: "Email address" })
-    .fill("new" + email);
-  await page.getByRole("textbox", { name: "Password" }).fill("newdiner");
-  await page.getByRole("button", { name: "Login" }).click();
-  await page.getByRole("link", { name: "pd" }).click();
-
-  await expect(page.getByRole("main")).toContainText("pizza diner");
 });
 
 // Pure mock test for user deletion
