@@ -126,6 +126,7 @@ interface PizzaService {
   docs(docType: string): Promise<Endpoints>;
   updateUser(user: User): Promise<User>;
   getUsers(page: number, limit: number, nameFilter: string): Promise<UserList>;
+  deleteUser(userId: number): Promise<void>;
 }
 
 export {

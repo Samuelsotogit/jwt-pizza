@@ -1,25 +1,24 @@
 import { test, expect } from "playwright-test-coverage";
+import { Dialog } from "@playwright/test";
 
 async function basicInitAdmin(page: any) {
   let loggedInUser: any = undefined;
+  let deletedUserIds: string[] = [];
+  let registeredUsers: any[] = [];
 
   await page.goto("/");
 
-  // Catch all API calls to debug
-  await page.route("**/api/**", async (route: any) => {
-    console.log(
-      `🌐 ALL API: ${route.request().method()} ${route.request().url()}`
-    );
-    await route.continue();
-  });
-
-  // More specific auth mock
+  // Enhanced auth mock with registration support
   await page.route("**/api/auth*", async (route: any) => {
     const method = route.request().method();
-    console.log(`🔍 AUTH: ${method} ${route.request().url()}`);
+    const url = route.request().url();
+    console.log(`🔍 AUTH: ${method} ${url}`);
 
     if (method === "PUT") {
+      // Login
       const loginReq = route.request().postDataJSON();
+
+      // Check for admin login
       if (loginReq.email === "a@jwt.com" && loginReq.password === "Admin") {
         loggedInUser = {
           id: "1",
@@ -33,19 +32,75 @@ async function basicInitAdmin(page: any) {
             token: "mock-admin-token",
           },
         });
-      } else {
-        await route.fulfill({ status: 401 });
       }
+      // Check for registered test users
+      else {
+        const foundUser = registeredUsers.find(
+          (u) => u.email === loginReq.email && u.password === loginReq.password
+        );
+
+        if (foundUser) {
+          loggedInUser = foundUser;
+          await route.fulfill({
+            json: {
+              user: foundUser,
+              token: "mock-user-token",
+            },
+          });
+        } else {
+          await route.fulfill({
+            status: 401,
+            json: { message: "unknown user" },
+          });
+        }
+      }
+    } else if (method === "POST") {
+      // Registration
+      const registerReq = route.request().postDataJSON();
+      console.log(`📝 REGISTERING: ${registerReq.name} <${registerReq.email}>`);
+
+      // Check if user already exists
+      const existingUser = registeredUsers.find(
+        (u) => u.email === registerReq.email
+      );
+      if (existingUser) {
+        await route.fulfill({
+          status: 409,
+          json: { message: "User already exists" },
+        });
+        return;
+      }
+
+      // Create new user
+      const newUser = {
+        id: (registeredUsers.length + 100).toString(), // Start IDs at 100 to avoid conflicts
+        name: registerReq.name,
+        email: registerReq.email,
+        password: registerReq.password,
+        roles: [{ role: "diner" }],
+      };
+
+      registeredUsers.push(newUser);
+      loggedInUser = newUser;
+
+      await route.fulfill({
+        json: {
+          user: newUser,
+          token: "mock-new-user-token",
+        },
+      });
     } else if (method === "DELETE") {
+      // Logout
       loggedInUser = undefined;
       await route.fulfill({ json: { message: "logout successful" } });
     }
   });
 
-  // Mock user list endpoint - ADD ASTERISK TO MATCH QUERY PARAMS
-  await page.route("**/api/user*", async (route: any) => {
+  // Your existing user route stays the same, but add registered users to the list
+  await page.route(/\/api\/user(\?|\/)/, async (route: any) => {
     const method = route.request().method();
-    console.log(`✅ USER MOCK: ${method} ${route.request().url()}`);
+    const url = route.request().url();
+    console.log(`🎯 USER ROUTE INTERCEPTED: ${method} ${url}`);
 
     if (method === "GET") {
       const url = new URL(route.request().url());
@@ -53,12 +108,8 @@ async function basicInitAdmin(page: any) {
       const limit = parseInt(url.searchParams.get("limit") || "10");
       const nameFilter = url.searchParams.get("name") || "*";
 
-      console.log(
-        `📊 PARAMS: page=${pageNum}, limit=${limit}, filter="${nameFilter}"`
-      );
-
-      // Your 12 users
-      const allUsers = [
+      // Combine your static users with registered users
+      let allUsers = [
         {
           id: "1",
           name: "Admin User",
@@ -85,38 +136,38 @@ async function basicInitAdmin(page: any) {
         },
         {
           id: "5",
-          name: "Jane Smith",
-          email: "jane@jwt.com",
-          roles: [{ role: "diner" }],
-        },
-        {
-          id: "6",
           name: "Mike Johnson",
           email: "mike@jwt.com",
           roles: [{ role: "diner" }],
         },
         {
+          id: "6",
+          name: "Sophia Lee",
+          email: "sophia@jwt.com",
+          roles: [{ role: "diner" }],
+        },
+        {
           id: "7",
-          name: "Sarah Wilson",
-          email: "sarah@jwt.com",
+          name: "Chris Evans",
+          email: "chris@jwt.com",
           roles: [{ role: "diner" }],
         },
         {
           id: "8",
-          name: "Tom Brown",
-          email: "tom@jwt.com",
+          name: "Olivia Brown",
+          email: "olivia@jwt.com",
           roles: [{ role: "diner" }],
         },
         {
           id: "9",
-          name: "Lisa Davis",
-          email: "lisa@jwt.com",
+          name: "Liam Wilson",
+          email: "liam@jwt.com",
           roles: [{ role: "diner" }],
         },
         {
           id: "10",
-          name: "Chris Miller",
-          email: "chris@jwt.com",
+          name: "Emma Martinez",
+          email: "emma@jwt.com",
           roles: [{ role: "diner" }],
         },
         {
@@ -133,10 +184,17 @@ async function basicInitAdmin(page: any) {
         },
       ];
 
-      // Filter logic - handle the asterisks properly
+      // Add registered users to the list
+      allUsers = [...allUsers, ...registeredUsers];
+
+      // Filter out deleted users
+      allUsers = allUsers.filter(
+        (user) => !deletedUserIds.includes(user.id.toString())
+      );
+
+      // Your existing filtering and pagination logic stays the same
       let filteredUsers = allUsers;
       if (nameFilter && nameFilter !== "*") {
-        // Remove asterisks and search
         const searchTerm = nameFilter.replace(/\*/g, "").toLowerCase();
         console.log(`🔍 SEARCHING FOR: "${searchTerm}"`);
 
@@ -173,10 +231,26 @@ async function basicInitAdmin(page: any) {
           page: pageNum,
         },
       });
+    } else if (method === "DELETE") {
+      // Your existing DELETE logic stays the same
+      console.log(`🗑️ DELETE INTERCEPTED!`);
+      const pathParts = url.split("/");
+      const userId = pathParts[pathParts.length - 1].toString();
+
+      console.log(`🗑️ DELETING USER: ${userId}`);
+
+      // Remove from registered users too
+      registeredUsers = registeredUsers.filter((u) => u.id !== userId);
+      deletedUserIds.push(userId);
+
+      await route.fulfill({
+        status: 204,
+        json: { message: "204 No Content" },
+      });
     }
   });
 
-  // Mock franchise endpoints - ALSO ADD ASTERISK
+  // Your existing franchise mock stays the same
   await page.route("**/api/franchise*", async (route: any) => {
     console.log(
       `🏢 FRANCHISE: ${route.request().method()} ${route.request().url()}`
@@ -344,4 +418,50 @@ test("update email and password", async ({ page }) => {
   await page.getByRole("link", { name: "pd" }).click();
 
   await expect(page.getByRole("main")).toContainText("pizza diner");
+});
+
+// Pure mock test for user deletion
+test("admin can delete users (mocked)", async ({ page }) => {
+  page.on("request", (req) => {
+    console.log("➡️", req.method(), req.url());
+  });
+  // Set up all API mocks
+  await basicInitAdmin(page);
+
+  // Login as admin (mocked)
+  await page.getByRole("link", { name: "Login" }).click();
+  await page.getByRole("textbox", { name: "Email address" }).fill("a@jwt.com");
+  await page.getByRole("textbox", { name: "Password" }).fill("Admin");
+  await page.getByRole("button", { name: "Login" }).click();
+
+  // Go to admin dashboard
+  await page.getByRole("link", { name: "Admin" }).click();
+  await page.waitForLoadState("networkidle");
+
+  // Confirm user is present before deletion
+  await expect(page.getByText("John Doe")).toBeVisible();
+
+  // Handle confirmation dialog
+  let dialogShown = false;
+  page.once("dialog", (dialog: Dialog) => {
+    expect(dialog.message()).toContain(
+      'Are you sure you want to delete user "John Doe"?'
+    );
+    dialogShown = true;
+    dialog.accept();
+  });
+  // Click delete button for John Doe (id: 4 in your mock)
+  await page.getByTestId("delete-user-4").click();
+
+  // Wait for UI update
+  await page.waitForTimeout(500);
+
+  // Verify dialog was shown
+  expect(dialogShown).toBe(true);
+
+  // Verify user is removed from the UI
+  await expect(page.getByRole("cell", { name: "John Doe" })).not.toBeVisible();
+
+  // Optionally, check that other users are still present
+  await expect(page.getByText("Admin User")).toBeVisible();
 });

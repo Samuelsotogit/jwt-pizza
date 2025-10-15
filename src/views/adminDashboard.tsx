@@ -72,6 +72,33 @@ export default function AdminDashboard(props: Props) {
     }
   };
 
+  const handleDeleteUser = async (userId: number, userName: string) => {
+    // 1. Add confirmation dialog
+    if (!confirm(`Are you sure you want to delete user "${userName}"?`)) {
+      return;
+    }
+
+    try {
+      setUserLoading(true);
+
+      await pizzaService.deleteUser(userId);
+
+      const result = await pizzaService.getUsers(userPage, 10, "*");
+      setUserList(result);
+
+      console.log(`✅ User ${userName} deleted successfully`);
+    } catch (error) {
+      console.error("Failed to delete user:", error);
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+
+      alert(`Failed to delete user: ${errorMessage}`);
+    } finally {
+      setUserLoading(false);
+    }
+  };
+
   function createFranchise() {
     navigate("/admin-dashboard/create-franchise");
   }
@@ -281,33 +308,41 @@ export default function AdminDashboard(props: Props) {
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="uppercase text-neutral-100 bg-slate-400 border-b-2 border-gray-500">
                         <tr>
-                          {["Name", "Email", "Role"].map((header) => (
-                            <th
-                              key={header}
-                              scope="col"
-                              className="px-6 py-3 text-center text-xs font-medium"
-                            >
-                              {header}
-                            </th>
-                          ))}
+                          {["Name", "Email", "Role", "Actions"].map(
+                            (
+                              header // ← Add "Actions"
+                            ) => (
+                              <th
+                                key={header}
+                                scope="col"
+                                className="px-6 py-3 text-center text-xs font-medium"
+                              >
+                                {header}
+                              </th>
+                            )
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {userLoading ? (
                           <tr>
                             <td
-                              colSpan={3}
+                              colSpan={4}
                               className="text-center py-8 text-gray-600"
                             >
+                              {" "}
+                              {/* ← Change colSpan to 4 */}
                               Loading users...
                             </td>
                           </tr>
                         ) : userList.users.length === 0 ? (
                           <tr>
                             <td
-                              colSpan={3}
+                              colSpan={4}
                               className="text-center py-8 text-gray-600"
                             >
+                              {" "}
+                              {/* ← Change colSpan to 4 */}
                               No users found
                             </td>
                           </tr>
@@ -328,6 +363,27 @@ export default function AdminDashboard(props: Props) {
                                       {formatRole(role)}
                                     </span>
                                   ))}
+                              </td>
+                              {/* Add this new Actions column */}
+                              <td className="text-center px-6 py-2 whitespace-nowrap text-sm">
+                                <button
+                                  onClick={() => {
+                                    if (user.id && user.name) {
+                                      handleDeleteUser(
+                                        Number(user.id),
+                                        user.name
+                                      );
+                                    }
+                                  }}
+                                  disabled={
+                                    userLoading || !user.id || !user.name
+                                  }
+                                  className="px-2 py-1 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-1 border-red-400 text-red-400 hover:border-red-800 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  data-testid={`delete-user-${user.id}`}
+                                >
+                                  <TrashIcon />
+                                  Delete
+                                </button>
                               </td>
                             </tr>
                           ))
@@ -353,7 +409,7 @@ export default function AdminDashboard(props: Props) {
                             </button>
                           </td>
                           <td
-                            colSpan={2}
+                            colSpan={3}
                             className="text-end text-sm font-medium"
                           >
                             <span className="mr-4 text-sm text-gray-600">
