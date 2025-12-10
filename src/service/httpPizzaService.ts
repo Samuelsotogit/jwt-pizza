@@ -160,7 +160,7 @@ class HttpPizzaService implements PizzaService {
     const { user, token } = await this.callEndpoint(
       `/api/user/${updatedUser.id}`,
       "PUT",
-      updatedUser
+      updatedUser 
     );
     localStorage.setItem("token", token);
     return Promise.resolve(user);
